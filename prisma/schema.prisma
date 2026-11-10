@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum VisitType {
+  REGULAR_CHECKUP
+  SPECIFIC_REASON
+}
+
+enum AppointmentStatus {
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMode {
+  UPI
+  CASH
+  CARD
+}
+
+enum PaymentStatus {
+  PAID
+  CASH_PENDING
+  FAILED
+}
+
+enum Language {
+  EN
+  TA
+}
+
+model Patient {
+  id               String      @id @default(auto()) @map("_id") @db.ObjectId
+  name             String
+  age              Int
+  gender           Gender
+  phone            String      @unique
+  address          String
+  bloodGroup       String
+  emergencyContact String
+  preferredLanguage Language    @default(EN)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  appointments Appointment[]
+}
+
+model Department {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  nameTa      String?
+  description String?
+  doctors     Doctor[]
+}
+
+model Doctor {
+  id              String     @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  departmentId    String     @db.ObjectId
+  department      Department @relation(fields: [departmentId], references: [id])
+  experienceYears Int
+  consultationFee Int
+  isAvailable     Boolean    @default(true)
+  photoUrl        String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  appointments Appointment[]
+
+  @@index([departmentId])
+}
+
+model Appointment {
+  id            String            @id @default(auto()) @map("_id") @db.ObjectId
+  token         Int
+  patientId     String            @db.ObjectId
+  patient       Patient           @relation(fields: [patientId], references: [id])
+  doctorId      String            @db.ObjectId
+  doctor        Doctor            @relation(fields: [doctorId], references: [id])
+  visitType     VisitType
+  symptomText   String?
+  aiDepartment  String?
+  aiRelated     String?
+  status        AppointmentStatus @default(WAITING)
+  queuePosition Int
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  payment Payment?
+
+  @@index([doctorId, status])
+  @@index([patientId])
+}
+
+model Payment {
+  id                 String        @id @default(auto()) @map("_id") @db.ObjectId
+  appointmentId      String        @unique @db.ObjectId
+  appointment        Appointment   @relation(fields: [appointmentId], references: [id])
+  amount             Int
+  mode               PaymentMode
+  status             PaymentStatus @default(CASH_PENDING)
+  upiTransactionId   String?
+  confirmedByAdminId String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+}
+
+model Admin {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  clerkId   String   @unique
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model HospitalSetting {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  actorId   String?
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+}
